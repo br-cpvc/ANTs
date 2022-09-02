@@ -476,7 +476,9 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
     {
     reporter.CompletedStep();
 
+    std::cout << "DEBUG: Updating class labeling start" << std::endl;
     this->m_CurrentPosteriorProbability = this->UpdateClassLabeling();
+    std::cout << "DEBUG: Updating class labeling end" << std::endl;
 
     if( this->m_CurrentPosteriorProbability - probabilityOld <
         this->m_ConvergenceThreshold )
@@ -1062,6 +1064,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
   typename SampleType::Pointer sample = SampleType::New();
   sample->SetMeasurementVectorSize( 1 );
 
+  std::cout << "DEBUG : measurement start" << std::endl;
   ImageRegionConstIteratorWithIndex<ImageType> ItI( this->GetInput(),
                                                     this->GetInput()->GetRequestedRegion() );
   for( ItI.GoToBegin(); !ItI.IsAtEnd(); ++ItI )
@@ -1074,6 +1077,8 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
       sample->PushBack( measurement );
       }
     }
+  std::cout << "DEBUG : measurement end" << std::endl;
+  std::cout << "DEBUG : Tree gen start" << std::endl;
 
   typedef itk::Statistics::WeightedCentroidKdTreeGenerator<SampleType>
     TreeGeneratorType;
@@ -1082,6 +1087,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
   treeGenerator->SetBucketSize( 16 );
   treeGenerator->Update();
 
+  std::cout << "DEBUG : Tree gen end" << std::endl;
   typedef typename TreeGeneratorType::KdTreeType                TreeType;
   typedef itk::Statistics::KdTreeBasedKmeansEstimator<TreeType> EstimatorType;
   typename EstimatorType::Pointer estimator = EstimatorType::New();
@@ -1089,6 +1095,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
   estimator->SetMaximumIteration( 200 );
   estimator->SetCentroidPositionChangesThreshold( 0.0 );
 
+  std::cout << "DEBUG : estimator start" << std::endl;
   typename EstimatorType::ParametersType
     initialMeans( this->m_NumberOfTissueClasses );
 
@@ -1114,7 +1121,9 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
     }
   estimator->SetParameters( initialMeans );
   estimator->StartOptimization();
+  std::cout << "DEBUG : estimator end" << std::endl;
 
+  std::cout << "DEBUG : sample classify start" << std::endl;
   //
   // Classify the samples
   //
@@ -1169,7 +1178,9 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
       static_cast<typename ClassifierType::ClassLabelType>( n + 1 ) );
     }
   classifier->Update();
+  std::cout << "DEBUG : sample classify end" << std::endl;
 
+  std::cout << "DEBUG : voxel classify start" << std::endl;
   //
   // Classify the voxels
   //
@@ -1193,6 +1204,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
       }
     ++ItO;
     }
+  std::cout << "DEBUG : voxel classify end" << std::endl;
 
   //
   // If there are more than one intensity images, use the results from the first
@@ -1365,6 +1377,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
            this->m_MaximumNumberOfICMIterations )
       {
       itkDebugMacro( "ICM iteration: " << numberOfIterations );
+      std::cout << "ICM iteration: " << numberOfIterations << std::endl;
 
       oldMaxPosteriorSum = maxPosteriorSum;
 
@@ -1429,9 +1442,11 @@ if (ImageDimension==3) {
 }  // end else, (dimension != 3)
         }
       itkDebugMacro( "ICM posterior probability sum: " << maxPosteriorSum );
+      std::cout << "ICM posterior probability sum: " << maxPosteriorSum << std::endl;
       }
     }
 
+      //std::cout << "Update class labeling checkpoint 1: " << std::endl;
   RealImagePointer maxPosteriorProbabilityImage =
     AllocImage<RealImageType>( this->GetOutput(), NumericTraits<RealType>::Zero );
 
@@ -1450,8 +1465,10 @@ if (ImageDimension==3) {
   unsigned long totalSampleSize = sample->Size();
   for( unsigned int n = 0; n < totalNumberOfClasses; n++ )
     {
+      //std::cout << "Update class labeling checkpoint 1.1: " << n << std::endl;
     RealImagePointer posteriorProbabilityImage
       = this->GetPosteriorProbabilityImage( n + 1 );
+      //std::cout << "Update class labeling checkpoint 1.11: " << n << std::endl;
 
 	WeightArrayType weights( totalSampleSize );
 
@@ -1483,6 +1500,7 @@ if (ImageDimension==3) {
 			++ItO;
 		}
 	}
+      //std::cout << "Update class labeling checkpoint 1.12: " << n << std::endl;
 
 	// Loop through each z-slice
 	#pragma omp parallel for reduction(+:sumPosterior) schedule(dynamic)
@@ -1604,6 +1622,7 @@ if (ImageDimension==3) {
       ++ItO;
       }
 }  // end else, (dimension != 3)
+      //std::cout << "Update class labeling checkpoint 1.2: " << n << std::endl;
     if( n < this->m_NumberOfTissueClasses )
       {
       this->m_MixtureModelComponents[n]->SetListSampleWeights( &weights );
@@ -1626,6 +1645,7 @@ if (ImageDimension==3) {
       this->m_MixtureModelProportions[n] = 0.0;
       }
 
+      //std::cout << "Update class labeling checkpoint 1.3: " << n << std::endl;
     if( this->m_UseMixtureModelProportions )
       {
       this->m_MixtureModelProportions[n] = sumPosteriors[n]
@@ -1636,8 +1656,10 @@ if (ImageDimension==3) {
       this->m_MixtureModelProportions[n] = 1.0
         / static_cast<RealType>( totalNumberOfClasses );
       }
+      //std::cout << "Update class labeling checkpoint 1.4: " << n << std::endl;
     }
 
+      //std::cout << "Update class labeling checkpoint 2: " << std::endl;
   typedef LabelGeometryImageFilter<ClassifiedImageType, ImageType> GeometryType;
   typename GeometryType::Pointer geom = GeometryType::New();
   geom->SetInput( maxLabels );
@@ -1784,6 +1806,7 @@ if (ImageDimension==3) {
   // interest.  This quantity should increase at each iteration.
   //
 
+      //std::cout << "Update class labeling checkpoint 3: " << std::endl;
   if( !this->m_UseAsynchronousUpdating )
     {
     maxPosteriorSum = 0.0;
@@ -1798,6 +1821,7 @@ if (ImageDimension==3) {
         }
       }
     }
+      //std::cout << "Update class labeling checkpoint 4: " << std::endl;
 
   return maxPosteriorSum / static_cast<RealType>( totalSampleSize );
 }
@@ -2258,6 +2282,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
     // Calculate the sum of the probability images.  Also, store the
     // posterior probability images if m_MinimizeMemoryUsage == false.
     //
+	//std::cout << "Get posterior 1 " << whichClass << std::endl;
     if( whichClass == 1 )
       {
       this->m_SumPosteriorProbabilityImage =
@@ -2306,6 +2331,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
             }
           }
         }
+	//std::cout << "Get posterior 2 " << whichClass << std::endl;
       for( unsigned int c = 0; c < totalNumberOfClasses; c++ )
         {
         std::vector<RealImagePointer> smoothImages;
@@ -2314,6 +2340,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
             (this->m_InitializationStrategy == PriorLabelImage &&
              c < this->m_NumberOfTissueClasses) )
           {
+	//std::cout << "Getting smooth image " << c << " "  << whichClass << std::endl;
           for( unsigned int i = 0; i < this->m_NumberOfIntensityImages; i++ )
             {
             if( this->m_AdaptiveSmoothingWeights.size() > i &&
@@ -2327,12 +2354,16 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
               smoothImages.push_back( NULL );
               }
             }
+	//std::cout << "done " << c << " "  << whichClass << std::endl;
           }
 
+	//std::cout << "Getting Distance prior " << c << " "  << whichClass << std::endl;
         RealImagePointer distancePriorProbabilityImage =
           this->GetDistancePriorProbabilityImage( c + 1 );
+	//std::cout << "Gettint prior " << c << " "  << whichClass << std::endl;
         RealImagePointer priorProbabilityImage =
           this->GetPriorProbabilityImage( c + 1 );
+	//std::cout << "done " << std::endl;
 
         typename NeighborhoodIterator<ClassifiedImageType>::RadiusType radius;
         unsigned int neighborhoodSize = 1;
@@ -2839,6 +2870,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
       this->m_SumDistancePriorProbabilityImage->FillBuffer( 0 );
       for( unsigned int c = 0; c < this->m_NumberOfTissueClasses; c++ )
         {
+			//std::cout << " Thresholder " << std::endl;
         typedef BinaryThresholdImageFilter<ClassifiedImageType, RealImageType>
           ThresholderType;
         typename ThresholderType::Pointer thresholder = ThresholderType::New();
@@ -2856,11 +2888,13 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
         thresholder->SetLowerThreshold( static_cast<LabelType>( c + 1 ) );
         thresholder->SetUpperThreshold( static_cast<LabelType>( c + 1 ) );
         thresholder->Update();
+			//std::cout << " Thresholder done " << std::endl;
 
         RealImagePointer distanceImage = RealImageType::New();
 
         if( this->m_UseEuclideanDistanceForPriorLabels )
           {
+			//std::cout << " Distancer " << std::endl;
           typedef SignedMaurerDistanceMapImageFilter
             <RealImageType, RealImageType> DistancerType;
           typename DistancerType::Pointer distancer = DistancerType::New();
@@ -2871,9 +2905,11 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
           distancer->Update();
 
           distanceImage = distancer->GetOutput();
+			//std::cout << " done " << std::endl;
           }
         else
           {
+			//std::cout << " contour " << std::endl;
           typedef BinaryContourImageFilter<RealImageType, RealImageType>
             ContourFilterType;
           typename ContourFilterType::Pointer contour = ContourFilterType::New();
@@ -2882,7 +2918,9 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
           contour->SetBackgroundValue( 0 );
           contour->SetForegroundValue( 1 );
           contour->Update();
+			//std::cout << " done " << std::endl;
 
+			//std::cout << " fastmarching " << std::endl;
           typedef FastMarchingImageFilter<RealImageType, RealImageType>
             FastMarchingFilterType;
           typename FastMarchingFilterType::Pointer fastMarching
@@ -2912,6 +2950,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
           trialPoints->Initialize();
 
           unsigned long trialCount = 0;
+			//std::cout << " fastmarching init done " << std::endl;
 
           ImageRegionIteratorWithIndex<RealImageType> ItC(
             contour->GetOutput(), contour->GetOutput()->GetRequestedRegion() );
@@ -2928,7 +2967,9 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
           fastMarching->SetTrialPoints( trialPoints );
           fastMarching->SetStoppingValue( NumericTraits<RealType>::max() );
 //           fastMarching->SetTopologyCheck( FastMarchingFilterType::None );
+			//std::cout << " fm update" << std::endl;
           fastMarching->Update();
+			//std::cout << " trial done " << std::endl;
 
           ImageRegionIterator<RealImageType> ItT( thresholder->GetOutput(),
                                                   thresholder->GetOutput()->GetRequestedRegion() );
@@ -2943,8 +2984,10 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
             }
 
           distanceImage = fastMarching->GetOutput();
+			//std::cout << " fm done " << std::endl;
           }
 
+			//std::cout << " interior dist " << std::endl;
         RealType maximumInteriorDistance = 0.0;
 
         ImageRegionIterator<RealImageType> ItD( distanceImage,
@@ -2957,10 +3000,12 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
             maximumInteriorDistance = vnl_math_abs( ItD.Get() );
             }
           }
+			//std::cout << " interior dist done " << std::endl;
 
         RealType labelLambda = 0.0;
         RealType labelBoundaryProbability = 1.0;
 
+			//std::cout << " prior label map " << std::endl;
         typename LabelParameterMapType::iterator it =
           this->m_PriorLabelParameterMap.find( c + 1 );
         if( it != this->m_PriorLabelParameterMap.end() )
@@ -2994,12 +3039,15 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
             }
           }
 
+			//std::cout << " prior label map done  " << std::endl;
+			//std::cout << " adder " << std::endl;
         typedef AddImageFilter<RealImageType, RealImageType, RealImageType>
           AdderType;
         typename AdderType::Pointer adder = AdderType::New();
         adder->SetInput1( this->m_SumDistancePriorProbabilityImage );
         adder->SetInput2( distanceImage );
         adder->Update();
+			//std::cout << " done " << std::endl;
 
         this->m_SumDistancePriorProbabilityImage = adder->GetOutput();
 
@@ -3012,6 +3060,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
           this->m_DistancePriorProbabilityImages.push_back(
             distanceImage );
           }
+			//std::cout << " Get distance done " << std::endl;
         }
 
       //

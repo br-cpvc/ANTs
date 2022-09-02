@@ -96,7 +96,7 @@ int AtroposSegmentation( itk::ants::CommandLineParser *parser )
   typedef CommandIterationUpdate<SegmentationFilterType> CommandType;
   typename CommandType::Pointer observer = CommandType::New();
   segmenter->AddObserver( itk::IterationEvent(), observer );
-  // segmenter->DebugOn();
+  segmenter->DebugOn();
 
   /**
    * memory-usage -- need to set before setting the prior probability images.
