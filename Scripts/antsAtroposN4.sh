@@ -60,6 +60,11 @@ Optional arguments:
      -k:  keep temporary files                  Keep temporary files on disk (default = false).
      -w:  Atropos prior segmentation weight     Atropos spatial prior probability weight for the segmentation (default = 0)
 
+     -e: Convergence, e.g., "[25x25x25x25,0]"
+     -f: N4 Shrink factor
+     -i: Atropos icm useAsynchronousUpdate 0/(1)
+     -j: Atropos use-euclidean-distance (0)/1
+
 USAGE
     exit 1
 }
@@ -87,6 +92,8 @@ echoParameters() {
        posterior formulation  = ${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION}
        mrf                    = ${ATROPOS_SEGMENTATION_MRF}
        Max N4->Atropos iters. = ${ATROPOS_SEGMENTATION_NUMBER_OF_ITERATIONS}
+       icm                    = ${ATROPOS_SEGMENTATION_ICM}
+       use-euclidean-distance = ${ATROPOS_SEGMENTATION_USE_EUCLIDEAN_DISTANCE}
 
 PARAMETERS
 }
@@ -151,14 +158,28 @@ ATROPOS_SEGMENTATION_NUMBER_OF_ITERATIONS=5
 ATROPOS_SEGMENTATION_NUMBER_OF_ITERATIONS=5
 ATROPOS_SEGMENTATION_NUMBER_OF_CLASSES=3
 ATROPOS_SEGMENTATION_MRF=''
+ATROPOS_SEGMENTATION_ICM=1
+ATROPOS_SEGMENTATION_USE_EUCLIDEAN_DISTANCE=0
 
 if [[ $# -lt 3 ]] ; then
   Usage >&2
   exit 1
 else
-  while getopts "a:c:d:h:k:l:m:n:o:p:r:s:w:x:" OPT
+  while getopts "a:c:d:h:k:l:m:n:o:p:r:s:w:x:e:f:i:j:" OPT
     do
       case $OPT in
+          e)
+              N4_CONVERGENCE=$OPTARG
+              ;;
+          f)
+              N4_SHRINK_FACTOR=$OPTARG
+              ;;
+          i)
+              ATROPOS_SEGMENTATION_ICM=$OPTARG
+              ;;
+          j)
+              ATROPOS_SEGMENTATION_USE_EUCLIDEAN_DISTANCE=$OPTARG
+              ;;
           c) #number of segmentation classes
        ATROPOS_SEGMENTATION_NUMBER_OF_CLASSES=$OPTARG
        ;;
@@ -399,10 +420,10 @@ for (( i = 0; i < ${N4_ATROPOS_NUMBER_OF_ITERATIONS}; i++ ))
           fi
       fi
 
-    exe_segmentation="${ATROPOS} -d ${DIMENSION} -x ${ATROPOS_SEGMENTATION_MASK} -c ${ATROPOS_SEGMENTATION_CONVERGENCE} -p ${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION}[1] ${ATROPOS_ANATOMICAL_IMAGES_COMMAND_LINE} -i ${INITIALIZATION} -k ${ATROPOS_SEGMENTATION_LIKELIHOOD} -m ${ATROPOS_SEGMENTATION_MRF} -o [${ATROPOS_SEGMENTATION},${ATROPOS_SEGMENTATION_POSTERIORS}]"
+    exe_segmentation="${ATROPOS} -d ${DIMENSION} -x ${ATROPOS_SEGMENTATION_MASK} -c ${ATROPOS_SEGMENTATION_CONVERGENCE} -p ${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION}[1] ${ATROPOS_ANATOMICAL_IMAGES_COMMAND_LINE} -i ${INITIALIZATION} -k ${ATROPOS_SEGMENTATION_LIKELIHOOD} -m ${ATROPOS_SEGMENTATION_MRF} -g ${ATROPOS_SEGMENTATION_ICM} -o [${ATROPOS_SEGMENTATION},${ATROPOS_SEGMENTATION_POSTERIORS}] -e ${ATROPOS_SEGMENTATION_USE_EUCLIDEAN_DISTANCE}"
     if [[ $i -eq 0 ]];
       then
-        exe_segmentation="${ATROPOS} -d ${DIMENSION} -x ${ATROPOS_SEGMENTATION_MASK}  -c ${ATROPOS_SEGMENTATION_CONVERGENCE} -p ${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION}[0] ${ATROPOS_ANATOMICAL_IMAGES_COMMAND_LINE} -i ${INITIALIZATION} -k ${ATROPOS_SEGMENTATION_LIKELIHOOD} -m ${ATROPOS_SEGMENTATION_MRF} -o [${ATROPOS_SEGMENTATION},${ATROPOS_SEGMENTATION_POSTERIORS}]"
+        exe_segmentation="${ATROPOS} -d ${DIMENSION} -x ${ATROPOS_SEGMENTATION_MASK}  -c ${ATROPOS_SEGMENTATION_CONVERGENCE} -p ${ATROPOS_SEGMENTATION_POSTERIOR_FORMULATION}[0] ${ATROPOS_ANATOMICAL_IMAGES_COMMAND_LINE} -i ${INITIALIZATION} -k ${ATROPOS_SEGMENTATION_LIKELIHOOD} -m ${ATROPOS_SEGMENTATION_MRF} -g ${ATROPOS_SEGMENTATION_ICM} -o [${ATROPOS_SEGMENTATION},${ATROPOS_SEGMENTATION_POSTERIORS}] -e ${ATROPOS_SEGMENTATION_USE_EUCLIDEAN_DISTANCE}"
       else
         logCmd cp -f ${ATROPOS_SEGMENTATION} ${SEGMENTATION_PREVIOUS_ITERATION}
 
