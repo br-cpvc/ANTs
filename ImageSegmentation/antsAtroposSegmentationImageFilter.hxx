@@ -108,7 +108,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::Atrop
   this->m_AnnealingRate = 1.0;
   this->m_MinimumAnnealingTemperature = 0.1;
   this->m_ICMCodeImage = nullptr;
-  this->m_UseAsynchronousUpdating = true;
+  this->m_UseAsynchronousUpdating = false;
   this->m_MaximumNumberOfICMIterations = 1;
 }
 
@@ -678,6 +678,71 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::
 
     sumPriorProbabilityImage = adder->GetOutput();
 
+if (ImageDimension==3) {
+	// OMP
+	unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
+	unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
+	unsigned long zSize = this->GetOutput()->GetRequestedRegion().GetSize(2);
+
+	// Loop through each z-slice
+	#pragma omp parallel for schedule(dynamic)
+	for (unsigned int k = 0; k < zSize; k++ )
+	{
+		ImageRegionIteratorWithIndex<RealImageType> ItP( priorProbabilityImage,
+				priorProbabilityImage->GetRequestedRegion() );
+		ImageRegionIterator<RealImageType> ItM( maxPriorProbabilityImage,
+				maxPriorProbabilityImage->GetRequestedRegion() );
+		ImageRegionIterator<ClassifiedImageType> ItO( this->GetOutput(),
+				this->GetOutput()->GetRequestedRegion() );
+
+		typename ImageRegionIterator<ClassifiedImageType>::IndexType startindexItO;
+		startindexItO.SetElement(0, 0);
+		startindexItO.SetElement(1, 0);
+		startindexItO.SetElement(2, k);
+
+		typename ImageRegionIterator<RealImageType>::IndexType startindexItM;
+		startindexItM.SetElement(0, 0);
+		startindexItM.SetElement(1, 0);
+		startindexItM.SetElement(2, k);
+
+		typename ImageRegionIteratorWithIndex<ImageType>::IndexType startindexItP;
+		startindexItP.SetElement(0, 0);
+		startindexItP.SetElement(1, 0);
+		startindexItP.SetElement(2, k);
+
+		ItO.SetIndex(startindexItO);
+		ItM.SetIndex(startindexItM);
+		ItP.SetIndex(startindexItP);
+
+		for(unsigned int j = 0; j < xSize*ySize; j++, ++ItO, ++ItM, ++ItP)
+		{
+      if (!this->GetMaskImage() ||
+          this->GetMaskImage()->GetPixel(ItP.GetIndex()) != NumericTraits<MaskLabelType>::ZeroValue())
+			{
+				if(ItP.Get() > ItM.Get())
+				{
+					ItM.Set(ItP.Get());
+					ItO.Set(n + 1);
+				}
+				else if(ItP.Get() == ItM.Get())
+				{
+					if(n == 0)
+					{
+						ItO.Set(1);
+					}
+					else  // if maximum probabilities are the same, randomly select one
+					{
+						if(this->m_Randomizer->GetIntegerVariate(1))
+						{
+							ItO.Set(n + 1);
+						}
+					}
+				}
+			}
+		}
+	}
+	#pragma omp barrier
+} else {
     ImageRegionIteratorWithIndex<RealImageType> ItP(priorProbabilityImage, priorProbabilityImage->GetRequestedRegion());
     ImageRegionIterator<RealImageType> ItM(maxPriorProbabilityImage, maxPriorProbabilityImage->GetRequestedRegion());
     ImageRegionIterator<ClassifiedImageType> ItO(this->GetOutput(), this->GetOutput()->GetRequestedRegion());
@@ -713,6 +778,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::
       ++ItP;
       ++ItM;
       ++ItO;
+}  // end else, (dimension != 3)
     }
   }
   // Now we can normalize each prior probability image by dividing by the sum
@@ -720,6 +786,60 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::
   {
     RealImagePointer priorProbabilityImage = this->GetPriorProbabilityImage(n + 1);
 
+if (ImageDimension==3) {
+	// OMP
+	unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
+	unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
+	unsigned long zSize = this->GetOutput()->GetRequestedRegion().GetSize(2);
+
+	// Loop through each z-slice
+	#pragma omp parallel for schedule(dynamic)
+	for (unsigned int k = 0; k < zSize; k++ )
+	{
+		ImageRegionIteratorWithIndex<ImageType> ItP(priorProbabilityImage, priorProbabilityImage->GetRequestedRegion());
+		ImageRegionIterator<RealImageType> ItS(sumPriorProbabilityImage, sumPriorProbabilityImage->GetRequestedRegion());
+		ImageRegionIterator<RealImageType> ItM(maxPriorProbabilityImage, maxPriorProbabilityImage->GetRequestedRegion());
+		ImageRegionIterator<ClassifiedImageType> ItO(this->GetOutput(), this->GetOutput()->GetRequestedRegion());
+
+		typename ImageRegionIterator<ClassifiedImageType>::IndexType startindexItO;
+		startindexItO.SetElement(0, 0);
+		startindexItO.SetElement(1, 0);
+		startindexItO.SetElement(2, k);
+
+		typename ImageRegionIterator<RealImageType>::IndexType startindexItM;
+		startindexItM.SetElement(0, 0);
+		startindexItM.SetElement(1, 0);
+		startindexItM.SetElement(2, k);
+
+		typename ImageRegionIteratorWithIndex<RealImageType>::IndexType startindexItP;
+		startindexItP.SetElement(0, 0);
+		startindexItP.SetElement(1, 0);
+		startindexItP.SetElement(2, k);
+
+		ItO.SetIndex(startindexItO);
+		ItM.SetIndex(startindexItM);
+		ItS.SetIndex(startindexItM);
+		ItP.SetIndex(startindexItP);
+
+		for(unsigned int j = 0; j < xSize*ySize; j++, ++ItO, ++ItM, ++ItP, ++ItS)
+		{
+      if (!this->GetMaskImage() ||
+          this->GetMaskImage()->GetPixel(ItP.GetIndex()) != NumericTraits<MaskLabelType>::ZeroValue())
+			{
+				if( ItM.Get() <= this->m_ProbabilityThreshold || ItS.Get() == 0.0 )
+				{
+					ItO.Set( NumericTraits<LabelType>::Zero );
+					ItP.Set( NumericTraits<RealType>::Zero );
+				}
+				else
+				{
+					ItP.Set( ItP.Get() / ItS.Get() );
+				}
+			}
+		}
+	}
+	#pragma omp barrier
+} else {
     ImageRegionIteratorWithIndex<RealImageType> ItP(priorProbabilityImage, priorProbabilityImage->GetRequestedRegion());
     ImageRegionIterator<RealImageType> ItS(sumPriorProbabilityImage, sumPriorProbabilityImage->GetRequestedRegion());
     ImageRegionIterator<RealImageType> ItM(maxPriorProbabilityImage, maxPriorProbabilityImage->GetRequestedRegion());
@@ -751,6 +871,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::
       ++ItM;
       ++ItO;
     }
+}  // end else, (dimension != 3)
 
     this->SetPriorProbabilityImage(n + 1, priorProbabilityImage);
   }
@@ -1193,6 +1314,34 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::Updat
       }
       for (unsigned int n = 0; n < icmCodeSet.Size(); n++)
       {
+if (ImageDimension==3) {
+			// OMP
+			unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
+			unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
+			unsigned long zSize = this->GetOutput()->GetRequestedRegion().GetSize(2);
+
+			#pragma omp parallel for reduction(+:maxPosteriorSum) schedule(dynamic)
+			for (unsigned int k = 0; k < zSize; k++)
+			{
+				NeighborhoodIterator<ClassifiedImageType> ItOLocal(radius, this->GetOutput(), this->GetOutput()->GetRequestedRegion());
+
+				typename NeighborhoodIterator<ClassifiedImageType>::IndexType startindexItO;
+				startindexItO.SetElement(0, 0);
+				startindexItO.SetElement(1, 0);
+				startindexItO.SetElement(2, k);
+
+				ItOLocal.SetLocation(startindexItO);
+
+				for(unsigned int j = 0; j < xSize*ySize; j++, ++ItOLocal)
+				{
+          if (this->m_ICMCodeImage->GetPixel(ItO.GetIndex()) == icmCodeSet[n])
+					{
+						maxPosteriorSum += this->PerformLocalLabelingUpdate(ItOLocal);
+					}
+				}
+			}
+			#pragma omp barrier
+} else {
         for (ItO.GoToBegin(); !ItO.IsAtEnd(); ++ItO)
         {
           if (this->m_ICMCodeImage->GetPixel(ItO.GetIndex()) == icmCodeSet[n])
@@ -1200,6 +1349,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::Updat
             maxPosteriorSum += this->PerformLocalLabelingUpdate(ItO);
           }
         }
+}  // end else, (dimension != 3)
       }
       itkDebugMacro("ICM posterior probability sum: " << maxPosteriorSum);
     }
@@ -1223,13 +1373,113 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::Updat
   {
     RealImagePointer posteriorProbabilityImage = this->GetPosteriorProbabilityImage(n + 1);
 
+    WeightArrayType weights(totalSampleSize);
+
+if (ImageDimension==3) {
+    // OMP
+    unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
+    unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
+    unsigned long zSize = this->GetOutput()->GetRequestedRegion().GetSize(2);
+
+    RealType sumPosterior = 0.0;
+
+    // Fill weights
+    {
+      ImageRegionConstIterator<RealImageType> ItP( posteriorProbabilityImage,
+          posteriorProbabilityImage->GetRequestedRegion() );
+      ImageRegionIteratorWithIndex<ClassifiedImageType> ItO( maxLabels,
+          maxLabels->GetRequestedRegion() );
+      ItP.GoToBegin();
+      ItO.GoToBegin();
+      unsigned long count = 0;
+      while( !ItP.IsAtEnd() )
+      {
+        if (!this->GetMaskImage() ||
+            this->GetMaskImage()->GetPixel(ItO.GetIndex()) != NumericTraits<MaskLabelType>::ZeroValue())
+        {
+          RealType posteriorProbability = ItP.Get();
+          weights.SetElement( count++, posteriorProbability );
+        }
+        ++ItP;
+        ++ItO;
+      }
+    }
+
+    // Loop through each z-slice
+    #pragma omp parallel for reduction(+:sumPosterior) schedule(dynamic)
+    for (unsigned int k = 0; k < zSize; k++ )
+    {
+      ImageRegionIteratorWithIndex<ClassifiedImageType> ItO( maxLabels,
+          maxLabels->GetRequestedRegion() );
+      ImageRegionConstIterator<RealImageType> ItP( posteriorProbabilityImage,
+          posteriorProbabilityImage->GetRequestedRegion() );
+      ImageRegionIterator<RealImageType> ItM( maxPosteriorProbabilityImage,
+          maxPosteriorProbabilityImage->GetRequestedRegion() );
+
+      typename ImageRegionIteratorWithIndex<ClassifiedImageType>::IndexType startindexItO;
+      startindexItO.SetElement(0, 0);
+      startindexItO.SetElement(1, 0);
+      startindexItO.SetElement(2, k);
+
+      typename ImageRegionConstIterator<RealImageType>::IndexType startindexItP;
+      startindexItP.SetElement(0, 0);
+      startindexItP.SetElement(1, 0);
+      startindexItP.SetElement(2, k);
+
+      typename ImageRegionIterator<RealImageType>::IndexType startindexItM;
+      startindexItM.SetElement(0, 0);
+      startindexItM.SetElement(1, 0);
+      startindexItM.SetElement(2, k);
+
+      ItO.SetIndex(startindexItO);
+      ItM.SetIndex(startindexItM);
+      ItP.SetIndex(startindexItP);
+
+      for(unsigned int j = 0; j < xSize*ySize; j++, ++ItO, ++ItM, ++ItP)
+      {
+        if (!this->GetMaskImage() ||
+            this->GetMaskImage()->GetPixel(ItO.GetIndex()) != NumericTraits<MaskLabelType>::ZeroValue())
+        {
+          RealType posteriorProbability = ItP.Get();
+          //weights.SetElement(count++, posteriorProbability);
+
+          // The following commented lines enforce "hard EM" as opposed to "soft EM"
+          // which uses probabilities.
+          // if( this->GetOutput()->GetPixel( ItP.GetIndex() ) == n + 1 )
+          //   {
+          //   posteriorProbability = 1.0;
+          //   }
+          // else
+          //   {
+          //   posteriorProbability = 0.0;
+          //   }
+
+          if(posteriorProbability > ItM.Get())
+          {
+            ItM.Set(posteriorProbability);
+            ItO.Set(static_cast<LabelType>(n + 1));
+          }
+          else if(posteriorProbability == ItM.Get())
+          {
+            LabelType currentLabel = ItO.Get();
+            if(currentLabel >= 1 && this->m_LabelVolumes[n] < this->m_LabelVolumes[currentLabel - 1])
+            {
+              ItO.Set( static_cast<LabelType>(n + 1));
+            }
+          }
+          //sumPosteriors[n] += posteriorProbability;
+          sumPosterior += posteriorProbability;
+        }
+      }
+    }
+    #pragma omp barrier
+    sumPosteriors[n] = sumPosterior;
+} else {
     ImageRegionIteratorWithIndex<ClassifiedImageType> ItO(maxLabels, maxLabels->GetRequestedRegion());
     ImageRegionConstIterator<RealImageType>           ItP(posteriorProbabilityImage,
                                                 posteriorProbabilityImage->GetRequestedRegion());
     ImageRegionIterator<RealImageType>                ItM(maxPosteriorProbabilityImage,
                                            maxPosteriorProbabilityImage->GetRequestedRegion());
-
-    WeightArrayType weights(totalSampleSize);
 
     unsigned long count = 0;
 
@@ -1275,6 +1525,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::Updat
       ++ItO;
     }
 
+}  // end else, (dimension != 3)
     if (n < this->m_NumberOfTissueClasses)
     {
       this->m_MixtureModelComponents[n]->SetListSampleWeights(&weights);
@@ -1988,11 +2239,42 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::GetPo
           radius[d] = this->m_MRFRadius[d];
         }
 
+#define __accelerate_in_3rd_dimension__
+#ifdef __accelerate_in_3rd_dimension__
+    if (ImageDimension!=3) {
+      itkWarningMacro( "Only 3 Dimensions are currently supported." );
+      exit(EXIT_FAILURE);
+    }
+
+    unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
+    unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
+    unsigned long zSize = this->GetOutput()->GetRequestedRegion().GetSize(2);
+
+    #pragma omp parallel for schedule(dynamic)
+      for (unsigned int k = 0; k < zSize; k++)
+      {
+#endif // __accelerate_in_3rd_dimension__
         ConstNeighborhoodIterator<ClassifiedImageType> ItO(
           radius, this->GetOutput(), this->GetOutput()->GetRequestedRegion());
         ImageRegionIterator<RealImageType> ItS(this->m_SumPosteriorProbabilityImage,
                                                this->m_SumPosteriorProbabilityImage->GetRequestedRegion());
+#ifdef __accelerate_in_3rd_dimension__
+        typename ConstNeighborhoodIterator<ClassifiedImageType>::IndexType startindexItS;
+        typename ImageRegionIterator<RealImageType>::IndexType startindexItO;
+        startindexItO.SetElement(0, 0);
+        startindexItO.SetElement(1, 0);
+        startindexItO.SetElement(2, k);
+        startindexItS.SetElement(0, 0);
+        startindexItS.SetElement(1, 0);
+        startindexItS.SetElement(2, k);
+
+        ItO.SetLocation(startindexItO);
+        ItS.SetIndex(startindexItS);
+
+        for (unsigned int j = 0; j < xSize*ySize; j++, ++ItO, ++ItS)
+#else // __accelerate_in_3rd_dimension__
         for (ItO.GoToBegin(), ItS.GoToBegin(); !ItO.IsAtEnd(); ++ItO, ++ItS)
+#endif // __accelerate_in_3rd_dimension__
         {
           if (!this->GetMaskImage() ||
               this->GetMaskImage()->GetPixel(ItO.GetIndex()) != NumericTraits<MaskLabelType>::ZeroValue())
@@ -2113,6 +2395,10 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>::GetPo
             ItS.Set(ItS.Get() + posteriorProbability);
           }
         }
+#ifdef __accelerate_in_3rd_dimension__
+      }
+	  #pragma omp barrier
+#endif // __accelerate_in_3rd_dimension__
         if (!this->m_MinimizeMemoryUsage)
         {
           typedef ImageDuplicator<RealImageType> DuplicatorType;
