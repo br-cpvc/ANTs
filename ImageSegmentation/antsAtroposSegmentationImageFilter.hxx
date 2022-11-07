@@ -114,7 +114,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
   this->m_AnnealingRate = 1.0;
   this->m_MinimumAnnealingTemperature = 0.1;
   this->m_ICMCodeImage = NULL;
-#define __optimize_omp_GetPosteriorProbabilityImage__
+//#define __optimize_omp_GetPosteriorProbabilityImage__
 #ifndef __optimize_omp_GetPosteriorProbabilityImage__
   this->m_UseAsynchronousUpdating = true;
 #else
