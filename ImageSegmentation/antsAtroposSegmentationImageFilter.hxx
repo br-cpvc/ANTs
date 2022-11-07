@@ -114,7 +114,13 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
   this->m_AnnealingRate = 1.0;
   this->m_MinimumAnnealingTemperature = 0.1;
   this->m_ICMCodeImage = NULL;
+#define __optimize_omp_GetPosteriorProbabilityImage__
+#ifndef __optimize_omp_GetPosteriorProbabilityImage__
+  this->m_UseAsynchronousUpdating = true;
+#else
   this->m_UseAsynchronousUpdating = false;
+  std::cout << "optimize_omp_GetPosteriorProbabilityImage" << std::endl;
+#endif
   this->m_MaximumNumberOfICMIterations = 1;
 }
 
@@ -726,7 +732,13 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
 
     sumPriorProbabilityImage = adder->GetOutput();
 
+#define __optimize_omp_InitialLabelingWithPriorProbabilityImages_random__
+#ifndef __optimize_omp_InitialLabelingWithPriorProbabilityImages_random__
+if (false) {
+#else
 if (ImageDimension==3) {
+#endif
+std::cout << "optimize_omp_InitialLabelingWithPriorProbabilityImages_random" << std::endl;
 	// OMP
 	unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
 	unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
@@ -835,7 +847,13 @@ if (ImageDimension==3) {
     {
     RealImagePointer priorProbabilityImage = this->GetPriorProbabilityImage( n + 1 );
 
+#define __optimize_omp_InitialLabelingWithPriorProbabilityImages_threshold__
+#ifndef __optimize_omp_InitialLabelingWithPriorProbabilityImages_threshold__
+if (false) {
+#else
 if (ImageDimension==3) {
+#endif
+std::cout << "optimize_omp_InitialLabelingWithPriorProbabilityImages_threshold" << std::endl;
   // OMP
 	unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
 	unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
@@ -1402,7 +1420,13 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
       for( unsigned int n = 0; n < icmCodeSet.Size(); n++ )
         {
 
+#define __optimize_omp_UpdateClassLabeling_PerformLocalLabelingUpdate__
+#ifndef __optimize_omp_UpdateClassLabeling_PerformLocalLabelingUpdate__
+if (false) {
+#else
 if (ImageDimension==3) {
+#endif
+std::cout << "optimize_omp_UpdateClassLabeling_PerformLocalLabelingUpdate" << std::endl;
 			// OMP
 			unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
 			unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
@@ -1472,7 +1496,13 @@ if (ImageDimension==3) {
 
 	WeightArrayType weights( totalSampleSize );
 
-  if (ImageDimension==3) {
+#define __optimize_omp_UpdateClassLabeling_sumPosterior__
+#ifndef __optimize_omp_UpdateClassLabeling_sumPosterior__
+if (false) {
+#else
+if (ImageDimension==3) {
+#endif
+std::cout << "optimize_omp_UpdateClassLabeling_sumPosterior" << std::endl;
 	// OMP
 	unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
 	unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
@@ -2373,12 +2403,14 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
           radius[d] = this->m_MRFRadius[d];
           }
 
-#define __accelerate_in_3rd_dimension__
-#ifdef __accelerate_in_3rd_dimension__
+#define __optimize_omp_GetPosteriorProbabilityImage__
+#ifdef __optimize_omp_GetPosteriorProbabilityImage__
     if (ImageDimension!=3) {
       itkWarningMacro( "Only 3 Dimensions are currently supported." );
       exit(EXIT_FAILURE);
     }
+
+std::cout << "optimize_omp_GetPosteriorProbabilityImage" << std::endl;
 
     unsigned long xSize = this->GetOutput()->GetRequestedRegion().GetSize(0);
     unsigned long ySize = this->GetOutput()->GetRequestedRegion().GetSize(1);
@@ -2387,7 +2419,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
     #pragma omp parallel for schedule(dynamic)
         for (unsigned int k = 0; k < zSize; k++ )
         {
-#endif // __accelerate_in_3rd_dimension__
+#endif // __optimize_omp_GetPosteriorProbabilityImage__
         ConstNeighborhoodIterator<ClassifiedImageType> ItO( radius,
                                                             this->GetOutput(),
                                                             this->GetOutput()->GetRequestedRegion() );
@@ -2396,7 +2428,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
           this->m_SumPosteriorProbabilityImage->GetRequestedRegion() );
 
 
-#ifdef __accelerate_in_3rd_dimension__
+#ifdef __optimize_omp_GetPosteriorProbabilityImage__
         typename ConstNeighborhoodIterator<ClassifiedImageType>::IndexType startindexItS;
         typename ImageRegionIterator<RealImageType>::IndexType startindexItO;
         startindexItO.SetElement(0, 0);
@@ -2410,9 +2442,9 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
         ItS.SetIndex(startindexItS);
 
         for(unsigned int j = 0; j < xSize*ySize; j++, ++ItO, ++ItS)
-#else // __accelerate_in_3rd_dimension__
+#else // __optimize_omp_GetPosteriorProbabilityImage__
         for( ItO.GoToBegin(), ItS.GoToBegin(); !ItO.IsAtEnd(); ++ItO, ++ItS )
-#endif // __accelerate_in_3rd_dimension__
+#endif // __optimize_omp_GetPosteriorProbabilityImage__
           {
           if( !this->GetMaskImage() || this->GetMaskImage()->GetPixel( ItO.GetIndex() ) == this->m_MaskLabel )
             {
@@ -2541,10 +2573,10 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
             ItS.Set( ItS.Get() + posteriorProbability  );
             }
           }
-#ifdef __accelerate_in_3rd_dimension__
+#ifdef __optimize_omp_GetPosteriorProbabilityImage__
         }
 	  #pragma omp barrier
-#endif // __accelerate_in_3rd_dimension__
+#endif // __optimize_omp_GetPosteriorProbabilityImage__
         if( !this->m_MinimizeMemoryUsage )
           {
           typedef ImageDuplicator<RealImageType> DuplicatorType;
