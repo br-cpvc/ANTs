@@ -732,7 +732,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
 
     sumPriorProbabilityImage = adder->GetOutput();
 
-#define __optimize_omp_InitialLabelingWithPriorProbabilityImages_random__
+//#define __optimize_omp_InitialLabelingWithPriorProbabilityImages_random__
 #ifndef __optimize_omp_InitialLabelingWithPriorProbabilityImages_random__
 if (false) {
 #else
@@ -1420,7 +1420,7 @@ AtroposSegmentationImageFilter<TInputImage, TMaskImage, TClassifiedImage>
       for( unsigned int n = 0; n < icmCodeSet.Size(); n++ )
         {
 
-#define __optimize_omp_UpdateClassLabeling_PerformLocalLabelingUpdate__
+//#define __optimize_omp_UpdateClassLabeling_PerformLocalLabelingUpdate__
 #ifndef __optimize_omp_UpdateClassLabeling_PerformLocalLabelingUpdate__
 if (false) {
 #else
@@ -1496,7 +1496,7 @@ std::cout << "optimize_omp_UpdateClassLabeling_PerformLocalLabelingUpdate" << st
 
 	WeightArrayType weights( totalSampleSize );
 
-#define __optimize_omp_UpdateClassLabeling_sumPosterior__
+//#define __optimize_omp_UpdateClassLabeling_sumPosterior__
 #ifndef __optimize_omp_UpdateClassLabeling_sumPosterior__
 if (false) {
 #else
