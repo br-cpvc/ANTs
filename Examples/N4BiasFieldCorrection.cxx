@@ -478,6 +478,7 @@ N4(itk::ants::CommandLineParser * parser)
     dividedImage->Update();
     dividedImage->DisconnectPipeline();
 
+    if( weightImage )
     if (maskImageOption && maskImageOption->GetNumberOfFunctions() > 0)
     {
       itk::ImageRegionIteratorWithIndex<ImageType> ItD(dividedImage, dividedImage->GetLargestPossibleRegion());
